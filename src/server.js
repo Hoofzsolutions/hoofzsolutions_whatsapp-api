@@ -1,6 +1,6 @@
 const express = require("express");
 const dotenv = require("dotenv");
-const startWhatsApp = require("/whatsapp");
+const startWhatsApp = require("./Whatsapp");
 
 dotenv.config();
 const app = express();
