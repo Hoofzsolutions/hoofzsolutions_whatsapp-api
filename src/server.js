@@ -1,6 +1,6 @@
 const express = require("express");
 const dotenv = require("dotenv");
-const startWhatsApp = require("./Whatsapp");
+const startWhatsApp = require("./src/Whatsapp"); // <-- aqui tava o erro
 
 dotenv.config();
 const app = express();
@@ -15,8 +15,3 @@ app.get("/", (req, res) => {
 });
 
 app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
-
-
-
-
-
