@@ -1,6 +1,6 @@
 const express = require("express");
 const dotenv = require("dotenv");
-const startWhatsApp = require("./src/Whatsapp"); // <-- aqui tava o erro
+const startWhatsApp = require("./Whatsapp"); // ✅ certo
 
 dotenv.config();
 const app = express();
