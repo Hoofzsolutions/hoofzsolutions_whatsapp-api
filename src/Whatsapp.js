@@ -34,24 +34,26 @@ async function startWhatsApp(sockCallback) {
     if (type === "notify") {
       const msg = messages[0];
       const sender = msg.key.remoteJid;
-
-      // Se a mensagem não foi enviada por você e não é de grupo
+  
       if (!msg.key.fromMe && msg.message?.conversation && !sender.endsWith("@g.us")) {
         const text = msg.message.conversation;
-
+  
+        console.log(`📩 Mensagem recebida de ${sender}: "${text}"`);
+  
         try {
-          // Envia a mensagem recebida para a API de IA
           const response = await axios.post(IA_API_URL, {
             mensagem: text,
             cliente_id: sender,
           });
-
-          // Se a IA respondeu com sucesso, envia de volta pelo WhatsApp
+  
           if (response.data?.resposta) {
+            console.log(`🤖 Resposta da IA: "${response.data.resposta}"`);
             await sock.sendMessage(sender, { text: response.data.resposta });
+          } else {
+            console.warn("⚠️ A IA não retornou uma resposta.");
           }
         } catch (err) {
-          console.error("Erro ao se comunicar com a IA:", err.message);
+          console.error("❌ Erro ao se comunicar com a IA:", err.message);
           await sock.sendMessage(sender, { text: "⚠️ Erro ao acessar a IA." });
         }
       }
