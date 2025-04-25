@@ -40,9 +40,14 @@ async function startWhatsApp(sockCallback) {
     console.log(`📩 Mensagem recebida de ${sender}: "${textMessage}"`);
 
     try {
+      // 👉 Corrigido: normalizar de @s.whatsapp.net para @c.us
+      const senderNormalized = sender.replace("@s.whatsapp.net", "@c.us");
+
+      console.log(`🔍 Enviando para IA: mensagem="${textMessage}", cliente_id="${senderNormalized}"`);
+
       const response = await axios.post(IA_API_URL, {
         mensagem: textMessage,
-        cliente_id: sender,
+        cliente_id: senderNormalized,
       });
 
       if (response.data?.resposta) {
@@ -77,3 +82,4 @@ async function startWhatsApp(sockCallback) {
 }
 
 module.exports = startWhatsApp;
+  
