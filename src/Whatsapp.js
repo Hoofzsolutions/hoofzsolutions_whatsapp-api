@@ -38,6 +38,7 @@ async function startWhatsApp(sockCallback) {
         console.log(`📩 Mensagem recebida de ${sender}: "${text}"`);
 
         try {
+          const senderNormalized = sender.replace("@s.whatsapp.net", "@c.us");
           const response = await axios.post(IA_API_URL, {
             mensagem: text,
             cliente_id: sender,
@@ -51,6 +52,9 @@ async function startWhatsApp(sockCallback) {
           }
         } catch (err) {
           console.error("❌ Erro ao se comunicar com a IA:", err.message);
+          if (err.response) {
+            console.error("Detalhes do erro:", err.response.data);
+          }
           await sock.sendMessage(sender, { text: "⚠️ Erro ao acessar a IA." });
         }
       }
