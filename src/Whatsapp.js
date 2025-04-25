@@ -7,6 +7,7 @@ const {
   fetchLatestBaileysVersion,
 } = require("@whiskeysockets/baileys");
 const axios = require("axios");
+const { Boom } = require("@hapi/boom");
 
 const IA_API_URL = process.env.IA_API_URL;
 console.log("🔗 Endpoint da IA carregado:", IA_API_URL);
@@ -39,8 +40,8 @@ async function startWhatsApp(sockCallback) {
     console.log(`📩 Mensagem recebida de ${sender}: "${textMessage}"`);
 
     try {
-      const sender = msg.key.remoteJid;
-      const senderNormalized = sender.replace(/@s\.whatsapp\.net$/, "@c.us");
+      // Normaliza o ID do remetente
+      const senderNormalized = sender.replace("@s.whatsapp.net", "@c.us");
 
       const response = await axios.post(IA_API_URL, {
         mensagem: textMessage,
