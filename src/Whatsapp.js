@@ -31,20 +31,20 @@ async function startWhatsApp(sockCallback) {
     if (type === "notify") {
       const msg = messages[0];
       const sender = msg.key.remoteJid;
-
+  
       if (!msg.key.fromMe && msg.message?.conversation && !sender.endsWith("@g.us")) {
         const text = msg.message.conversation;
-
+  
         console.log(`📩 Mensagem recebida de ${sender}: "${text}"`);
-
+  
         try {
           const senderNormalized = sender.replace("@s.whatsapp.net", "@c.us");
-
+  
           const response = await axios.post(IA_API_URL, {
             mensagem: text,
-            cliente_id: senderNormalized, // ✅ Usa o sender normalizado aqui!
+            cliente_id: senderNormalized,
           });
-
+  
           if (response.data?.resposta) {
             console.log(`🤖 Resposta da IA: "${response.data.resposta}"`);
             await sock.sendMessage(sender, { text: response.data.resposta });
