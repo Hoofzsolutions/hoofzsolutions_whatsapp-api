@@ -12,6 +12,9 @@ const { Boom } = require("@hapi/boom");
 const IA_API_URL = process.env.IA_API_URL;
 console.log("🔗 Endpoint da IA carregado:", IA_API_URL);
 
+// Armazena contexto por cliente (memória simples)
+const contextoPorCliente = {};
+
 async function startWhatsApp(sockCallback) {
   const { state, saveCreds } = await useMultiFileAuthState("./auth_info");
   const { version } = await fetchLatestBaileysVersion();
@@ -40,21 +43,39 @@ async function startWhatsApp(sockCallback) {
     console.log(`📩 Mensagem recebida de ${sender}: "${textMessage}"`);
 
     try {
-      // 👉 Corrigido: normalizar de @s.whatsapp.net para @c.us
       const senderNormalized = sender.replace("@s.whatsapp.net", "@c.us");
+      const contextoAtual = contextoPorCliente[senderNormalized] || {};
 
-      console.log(`🔍 Enviando para IA: mensagem="${textMessage}", cliente_id="${senderNormalized}"`);
+      console.log(`🔍 Enviando para IA: mensagem="${textMessage}", numeroCliente="${senderNormalized}"`);
 
       const response = await axios.post(IA_API_URL, {
         mensagem: textMessage,
-        cliente_id: senderNormalized,
+        numeroCliente: senderNormalized,
+        contexto: contextoAtual
       });
 
-      if (response.data?.resposta) {
-        console.log(`🤖 Resposta da IA: "${response.data.resposta}"`);
-        await sock.sendMessage(sender, { text: response.data.resposta });
+      const dados = response.data;
+
+      if (dados?.sucesso) {
+        // Atualizar contexto
+        if (dados.contexto) {
+          contextoPorCliente[senderNormalized] = {
+            ...contextoAtual,
+            ...dados.contexto,
+            respostas: { ...(contextoAtual.respostas || {}), ...(dados.contexto.respostas || {}) }
+          };
+        }
+
+        // Finalizou o atendimento
+        if (dados.contextoFinalizado) {
+          delete contextoPorCliente[senderNormalized];
+        }
+
+        console.log(`🤖 Resposta da IA: "${dados.mensagem}"`);
+        await sock.sendMessage(sender, { text: dados.mensagem });
       } else {
         console.warn("⚠️ A IA não retornou resposta.");
+        await sock.sendMessage(sender, { text: "⚠️ Não consegui entender sua mensagem. Pode tentar de novo? 😊" });
       }
     } catch (err) {
       console.error("❌ Erro ao se comunicar com a IA:", err.message);
@@ -82,4 +103,3 @@ async function startWhatsApp(sockCallback) {
 }
 
 module.exports = startWhatsApp;
-  
