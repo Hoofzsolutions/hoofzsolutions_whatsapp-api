@@ -5,43 +5,39 @@ const {
   fetchLatestBaileysVersion,
 } = require("@whiskeysockets/baileys");
 const axios = require("axios");
-const empresas = require("../empresas.json");
 require("dotenv").config();
 
 async function startSessao(authFolder) {
   const { state, saveCreds } = await useMultiFileAuthState(`./${authFolder}`);
   const { version } = await fetchLatestBaileysVersion();
 
+  console.log(`\n🔐 Iniciando conexão para: ${authFolder.toUpperCase()}...`);
+
   const sock = makeWASocket({
     version,
     auth: state,
     printQRInTerminal: true,
-    browser: ["Hoofz Multi", "Desktop", "1.0.0"],
+    browser: [authFolder.toUpperCase(), "Desktop", "1.0.0"],
   });
 
   sock.ev.on("creds.update", saveCreds);
 
   const contextoPorCliente = {};
-  let numeroSessao = null;
-  let empresaId = "desconhecida";
 
   sock.ev.on("connection.update", (update) => {
     const { connection, lastDisconnect } = update;
 
-    if (connection === "open" && sock.user) {
-      numeroSessao = sock.user.id;
-      empresaId = empresas[numeroSessao] || "desconhecida";
-      console.log(`✅ [${empresaId}] Conectado como ${numeroSessao}`);
+    if (connection === "close") {
+      const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
+      console.log(`🔌 [${authFolder}] Conexão encerrada. Reconectar? ${shouldReconnect}`);
+      if (shouldReconnect) startSessao(authFolder);
     }
 
-    if (connection === "close") {
-      const motivo = lastDisconnect?.error?.output?.statusCode;
-      if (motivo !== DisconnectReason.loggedOut) {
-        console.log(`🔁 Reconectando ${authFolder}...`);
-        startSessao(authFolder);
-      } else {
-        console.log(`🚫 Logout detectado para ${authFolder}`);
-      }
+    if (connection === "open") {
+      const numeroSessao = sock.user.id.split(":")[0];
+      const empresasMapeadas = require("../empresas.json");
+      const empresaId = empresasMapeadas[numeroSessao] || "desconhecida";
+      console.log(`✅ [${empresaId}] Conectado como ${sock.user.id}`);
     }
   });
 
@@ -55,7 +51,12 @@ async function startSessao(authFolder) {
     if (!textMessage || sender.endsWith("@g.us")) return;
 
     const contextoAtual = contextoPorCliente[sender] || {};
-    
+
+    // pega o número da sessão correta para buscar a empresa no JSON
+    const numeroSessao = sock.user.id.split(":")[0];
+    const empresasMapeadas = require("../empresas.json");
+    const empresaId = empresasMapeadas[numeroSessao] || "desconhecida";
+
     console.log(`[${empresaId}] ➜ Enviando para IA: ${process.env.IA_API_URL}/webhook`);
 
     try {
@@ -78,4 +79,4 @@ async function startSessao(authFolder) {
   });
 }
 
-module.exports = startSessao;
+module.exports = { startSessao };
