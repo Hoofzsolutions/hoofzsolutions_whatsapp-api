@@ -22,8 +22,28 @@ async function startSessao(authFolder) {
   sock.ev.on("creds.update", saveCreds);
 
   const contextoPorCliente = {};
-  const numeroSessao = sock.user.id;
-  const empresaId = empresas[numeroSessao] || "desconhecida";
+  let numeroSessao = null;
+  let empresaId = "desconhecida";
+
+  sock.ev.on("connection.update", (update) => {
+    const { connection, lastDisconnect } = update;
+
+    if (connection === "open" && sock.user) {
+      numeroSessao = sock.user.id;
+      empresaId = empresas[numeroSessao] || "desconhecida";
+      console.log(`✅ [${empresaId}] Conectado como ${numeroSessao}`);
+    }
+
+    if (connection === "close") {
+      const motivo = lastDisconnect?.error?.output?.statusCode;
+      if (motivo !== DisconnectReason.loggedOut) {
+        console.log(`🔁 Reconectando ${authFolder}...`);
+        startSessao(authFolder);
+      } else {
+        console.log(`🚫 Logout detectado para ${authFolder}`);
+      }
+    }
+  });
 
   sock.ev.on("messages.upsert", async ({ messages, type }) => {
     if (type !== "notify" || !messages.length) return;
@@ -35,13 +55,15 @@ async function startSessao(authFolder) {
     if (!textMessage || sender.endsWith("@g.us")) return;
 
     const contextoAtual = contextoPorCliente[sender] || {};
+    
+    console.log(`[${empresaId}] ➜ Enviando para IA: ${process.env.IA_API_URL}/webhook`);
 
     try {
       const resposta = await axios.post(`${process.env.IA_API_URL}/webhook`, {
         mensagem: textMessage,
         numeroCliente: sender,
         contexto: contextoAtual,
-        empresaId
+        empresaId,
       });
 
       const dados = resposta.data;
@@ -52,18 +74,6 @@ async function startSessao(authFolder) {
     } catch (err) {
       console.error(`[${empresaId}] ❌ Erro ao responder:`, err.message);
       await sock.sendMessage(sender, { text: "⚠️ Erro ao processar. Tente novamente." });
-    }
-  });
-
-  sock.ev.on("connection.update", (update) => {
-    const { connection, lastDisconnect } = update;
-    if (connection === "close") {
-      const motivo = lastDisconnect?.error?.output?.statusCode;
-      if (motivo !== DisconnectReason.loggedOut) {
-        startSessao(authFolder);
-      }
-    } else if (connection === "open") {
-      console.log(`✅ [${empresaId}] Conectado como ${numeroSessao}`);
     }
   });
 }
