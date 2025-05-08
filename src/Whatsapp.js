@@ -1,5 +1,3 @@
-require("dotenv").config();
-
 const {
   default: makeWASocket,
   useMultiFileAuthState,
@@ -7,99 +5,67 @@ const {
   fetchLatestBaileysVersion,
 } = require("@whiskeysockets/baileys");
 const axios = require("axios");
-const { Boom } = require("@hapi/boom");
+const empresas = require("../empresas.json");
+require("dotenv").config();
 
-const IA_API_URL = process.env.IA_API_URL;
-console.log("🔗 Endpoint da IA carregado:", IA_API_URL);
-
-// Armazena contexto por cliente (memória simples)
-const contextoPorCliente = {};
-
-async function startWhatsApp(sockCallback) {
-  const { state, saveCreds } = await useMultiFileAuthState("./auth_info");
+async function startSessao(authFolder) {
+  const { state, saveCreds } = await useMultiFileAuthState(`./${authFolder}`);
   const { version } = await fetchLatestBaileysVersion();
 
   const sock = makeWASocket({
     version,
     auth: state,
     printQRInTerminal: true,
-    browser: ["HoofzSolutions", "Desktop", "1.0.0"],
+    browser: ["Hoofz Multi", "Desktop", "1.0.0"],
   });
 
   sock.ev.on("creds.update", saveCreds);
 
+  const contextoPorCliente = {};
+  const numeroSessao = sock.user.id;
+  const empresaId = empresas[numeroSessao] || "desconhecida";
+
   sock.ev.on("messages.upsert", async ({ messages, type }) => {
     if (type !== "notify" || !messages.length) return;
-
     const msg = messages[0];
-
     if (!msg.message || msg.key.fromMe) return;
 
     const sender = msg.key.remoteJid;
     const textMessage = msg.message.conversation || msg.message.extendedTextMessage?.text;
-
     if (!textMessage || sender.endsWith("@g.us")) return;
 
-    console.log(`📩 Mensagem recebida de ${sender}: "${textMessage}"`);
+    const contextoAtual = contextoPorCliente[sender] || {};
 
     try {
-      const senderNormalized = sender.replace("@s.whatsapp.net", "@c.us");
-      const contextoAtual = contextoPorCliente[senderNormalized] || {};
-
-      console.log(`🔍 Enviando para IA: mensagem="${textMessage}", numeroCliente="${senderNormalized}"`);
-
-      const response = await axios.post(IA_API_URL, {
+      const resposta = await axios.post(`${process.env.IA_API_URL}/webhook`, {
         mensagem: textMessage,
-        numeroCliente: senderNormalized,
-        contexto: contextoAtual
+        numeroCliente: sender,
+        contexto: contextoAtual,
+        empresaId
       });
 
-      const dados = response.data;
-
-      if (dados?.sucesso) {
-        // Atualizar contexto
-        if (dados.contexto) {
-          contextoPorCliente[senderNormalized] = {
-            ...contextoAtual,
-            ...dados.contexto,
-            respostas: { ...(contextoAtual.respostas || {}), ...(dados.contexto.respostas || {}) }
-          };
-        }
-
-        // Finalizou o atendimento
-        if (dados.contextoFinalizado) {
-          delete contextoPorCliente[senderNormalized];
-        }
-
-        console.log(`🤖 Resposta da IA: "${dados.mensagem}"`);
+      const dados = resposta.data;
+      if (dados?.mensagem) {
+        contextoPorCliente[sender] = dados.contexto || {};
         await sock.sendMessage(sender, { text: dados.mensagem });
-      } else {
-        console.warn("⚠️ A IA não retornou resposta.");
-        await sock.sendMessage(sender, { text: "⚠️ Não consegui entender sua mensagem. Pode tentar de novo? 😊" });
       }
     } catch (err) {
-      console.error("❌ Erro ao se comunicar com a IA:", err.message);
-      if (err.response?.data) {
-        console.error("Detalhes do erro:", err.response.data);
-      }
-      await sock.sendMessage(sender, { text: "⚠️ Erro ao acessar a IA." });
+      console.error(`[${empresaId}] ❌ Erro ao responder:`, err.message);
+      await sock.sendMessage(sender, { text: "⚠️ Erro ao processar. Tente novamente." });
     }
   });
 
   sock.ev.on("connection.update", (update) => {
     const { connection, lastDisconnect } = update;
-
     if (connection === "close") {
-      const shouldReconnect =
-        lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
-      console.log("❌ Conexão encerrada. Reconectando:", shouldReconnect);
-      if (shouldReconnect) startWhatsApp(sockCallback);
+      const motivo = lastDisconnect?.error?.output?.statusCode;
+      if (motivo !== DisconnectReason.loggedOut) {
+        startSessao(authFolder);
+      }
     } else if (connection === "open") {
-      console.log("✅ Conectado ao WhatsApp com sucesso!");
+      console.log(`✅ [${empresaId}] Conectado como ${numeroSessao}`);
     }
   });
-
-  if (sockCallback) sockCallback(sock);
 }
 
-module.exports = startWhatsApp;
+module.exports = startSessao;
