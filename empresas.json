@@ -1,4 +1,64 @@
 {
-  "553591923763": "supermercado_silva",
-  "559999999999": "vittal_academia"
+  "mapa_clientes": {
+    "553599999999": "supermercado_silva",
+    "553591923763": "vittal_academia",
+    "550000000001": "Academia_Modelo",
+    "550000000002": "Mercado_Modelo",
+    "550000000003": "Joalheria_Modelo",
+    "550000000004": "Farmacia_Modelo",
+    "550000000005": "Servicos_Modelo",
+    "550000000006": "Barbearia_Modelo",
+    "550000000007": "Clinica_Modelo",
+    "550000000008": "Escritorio_Modelo"
+  },
+  "supermercado_silva": {
+    "nome": "Supermercado Silva",
+    "setor": "mercado",
+    "descricao": "Cliente real cadastrado: Supermercado Silva"
+  },
+  "vittal_academia": {
+    "nome": "Vittal Academia",
+    "setor": "academia",
+    "descricao": "Cliente real cadastrado: Vittal Academia"
+  },
+  "Academia_Modelo": {
+    "nome": "Academia Modelo",
+    "setor": "academia",
+    "descricao": "Cliente modelo para o setor de Academia"
+  },
+  "Mercado_Modelo": {
+    "nome": "Mercado Modelo",
+    "setor": "mercado",
+    "descricao": "Cliente modelo para o setor de Mercado"
+  },
+  "Joalheria_Modelo": {
+    "nome": "Joalheria Modelo",
+    "setor": "joalheria",
+    "descricao": "Cliente modelo para o setor de Joalheria"
+  },
+  "Farmacia_Modelo": {
+    "nome": "Farmacia Modelo",
+    "setor": "farmacia",
+    "descricao": "Cliente modelo para o setor de Farmacia"
+  },
+  "Servicos_Modelo": {
+    "nome": "Servicos Modelo",
+    "setor": "servicos",
+    "descricao": "Cliente modelo para o setor de Servicos"
+  },
+  "Barbearia_Modelo": {
+    "nome": "Barbearia Modelo",
+    "setor": "barbearia",
+    "descricao": "Cliente modelo para o setor de Barbearia"
+  },
+  "Clinica_Modelo": {
+    "nome": "Clinica Modelo",
+    "setor": "clinica",
+    "descricao": "Cliente modelo para o setor de Clinica"
+  },
+  "Escritorio_Modelo": {
+    "nome": "Escritorio Modelo",
+    "setor": "escritorio",
+    "descricao": "Cliente modelo para o setor de Escritorio"
+  }
 }

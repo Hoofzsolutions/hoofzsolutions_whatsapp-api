@@ -1,13 +1,11 @@
 [
-    {
-      "numero": "553599999999@s.whatsapp.net",
-      "empresaId": "vittal_academia",
-      "authFolder": "auth_info_vittal"
-    },
-    {
-      "numero": "553591923763@s.whatsapp.net",
-      "empresaId": "supermercado_silva",
-      "authFolder": "auth_info_mercado"
-    }
-  ]
-  
+  "vittal_academia",
+  "Academia_Modelo",
+  "Mercado_Modelo",
+  "Joalheria_Modelo",
+  "Farmacia_Modelo",
+  "Servicos_Modelo",
+  "Barbearia_Modelo",
+  "Clinica_Modelo",
+  "Escritorio_Modelo"
+]

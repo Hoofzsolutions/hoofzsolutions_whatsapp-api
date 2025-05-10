@@ -1,22 +1,14 @@
-const { startSessao } = require("./Whatsapp");
+const start = require("./Whatsapp");
+const fs = require("fs");
 
-const delay = (ms) => new Promise((res) => setTimeout(res, ms));
+// Lê o arquivo sessoes.json
+const sessoes = JSON.parse(fs.readFileSync("./sessoes.json", "utf-8"));
 
-(async () => {
-  const pastas = ["supermercado_silva", "vittal_academia"];
-
-  for (const pasta of pastas) {
-    console.log("\n===============================");
-    console.log(`🟡 Escaneie o QR Code para: ${pasta.toUpperCase()}`);
-    console.log("===============================\n");
-
-    try {
-      await startSessao(pasta);
-    } catch (err) {
-      console.error(`❌ Erro ao iniciar sessão para ${pasta}:`, err.message);
-    }
-
-    // Tempo para escanear QR antes da próxima sessão
-    await delay(15000); // você pode aumentar se necessário
+sessoes.forEach(async (nomeSessao) => {
+  try {
+    console.log(`🔄 Iniciando sessão: ${nomeSessao}`);
+    await start(nomeSessao);
+  } catch (error) {
+    console.error(`❌ Erro ao iniciar sessão ${nomeSessao}:`, error);
   }
-})();
+});

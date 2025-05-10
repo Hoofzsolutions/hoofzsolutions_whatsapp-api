@@ -1,82 +1,58 @@
-const {
-  default: makeWASocket,
-  useMultiFileAuthState,
-  DisconnectReason,
-  fetchLatestBaileysVersion,
-} = require("@whiskeysockets/baileys");
-const axios = require("axios");
-require("dotenv").config();
+const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require("@whiskeysockets/baileys");
+const { Boom } = require("@hapi/boom");
+const fs = require("fs");
+const path = require("path");
 
-async function startSessao(authFolder) {
-  const { state, saveCreds } = await useMultiFileAuthState(`./${authFolder}`);
-  const { version } = await fetchLatestBaileysVersion();
+module.exports = async (nomeSessao) => {
+  const pastaSessao = path.join(__dirname, "..", nomeSessao);
 
-  console.log(`\n🔐 Iniciando conexão para: ${authFolder.toUpperCase()}...`);
+  if (!fs.existsSync(pastaSessao)) {
+    fs.mkdirSync(pastaSessao, { recursive: true });
+  }
+
+  const { state, saveCreds } = await useMultiFileAuthState(pastaSessao);
 
   const sock = makeWASocket({
-    version,
     auth: state,
     printQRInTerminal: true,
-    browser: [authFolder.toUpperCase(), "Desktop", "1.0.0"],
   });
 
   sock.ev.on("creds.update", saveCreds);
 
-  const contextoPorCliente = {};
-
-  sock.ev.on("connection.update", (update) => {
-    const { connection, lastDisconnect } = update;
-
+  sock.ev.on("connection.update", ({ connection, lastDisconnect }) => {
     if (connection === "close") {
-      const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
-      console.log(`🔌 [${authFolder}] Conexão encerrada. Reconectar? ${shouldReconnect}`);
-      if (shouldReconnect) startSessao(authFolder);
-    }
+      const shouldReconnect =
+        lastDisconnect?.error instanceof Boom &&
+        lastDisconnect.error.output.statusCode !== DisconnectReason.loggedOut;
 
-    if (connection === "open") {
-      const numeroSessao = sock.user.id.split(":")[0];
-      const empresasMapeadas = require("../empresas.json");
-      const empresaId = empresasMapeadas[numeroSessao] || "desconhecida";
-      console.log(`✅ [${empresaId}] Conectado como ${sock.user.id}`);
+      console.log(`🔌 Conexão encerrada (${nomeSessao}). Reconectando: ${shouldReconnect}`);
+      if (shouldReconnect) {
+        require("./Whatsapp")(nomeSessao);
+      }
+    } else if (connection === "open") {
+      console.log(`✅ Conectado com sucesso: ${nomeSessao}`);
     }
   });
 
   sock.ev.on("messages.upsert", async ({ messages, type }) => {
-    if (type !== "notify" || !messages.length) return;
+    if (type !== "notify" || !messages || !messages[0]) return;
+
     const msg = messages[0];
-    if (!msg.message || msg.key.fromMe) return;
+    const mensagem = msg.message?.conversation || msg.message?.extendedTextMessage?.text || "";
+    const numeroCliente = msg.key.remoteJid;
 
-    const sender = msg.key.remoteJid;
-    const textMessage = msg.message.conversation || msg.message.extendedTextMessage?.text;
-    if (!textMessage || sender.endsWith("@g.us")) return;
+    if (!mensagem || msg.key.fromMe) return;
 
-    const contextoAtual = contextoPorCliente[sender] || {};
-
-    // pega o número da sessão correta para buscar a empresa no JSON
-    const numeroSessao = sock.user.id.split(":")[0];
-    const empresasMapeadas = require("../empresas.json");
-    const empresaId = empresasMapeadas[numeroSessao] || "desconhecida";
-
-    console.log(`[${empresaId}] ➜ Enviando para IA: ${process.env.IA_API_URL}/webhook`);
+    console.log(`📩 Mensagem recebida de ${numeroCliente}: ${mensagem}`);
 
     try {
-      const resposta = await axios.post(`${process.env.IA_API_URL}/webhook`, {
-        mensagem: textMessage,
-        numeroCliente: sender,
-        contexto: contextoAtual,
-        empresaId,
-      });
-
-      const dados = resposta.data;
-      if (dados?.mensagem) {
-        contextoPorCliente[sender] = dados.contexto || {};
-        await sock.sendMessage(sender, { text: dados.mensagem });
+      const ia = require("../atendimento_ia");
+      const resposta = await ia(mensagem, numeroCliente, nomeSessao);
+      if (resposta) {
+        await sock.sendMessage(numeroCliente, { text: resposta });
       }
-    } catch (err) {
-      console.error(`[${empresaId}] ❌ Erro ao responder:`, err.message);
-      await sock.sendMessage(sender, { text: "⚠️ Erro ao processar. Tente novamente." });
+    } catch (erro) {
+      console.error("Erro no atendimento IA:", erro);
     }
   });
-}
-
-module.exports = { startSessao };
+};
